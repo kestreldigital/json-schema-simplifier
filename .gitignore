@@ -1,0 +1,9 @@
+# Maven output
+target
+
+# IntelliJ project files
+.idea
+*.iml
+
+# MacOS rubbish
+.DS_Store
