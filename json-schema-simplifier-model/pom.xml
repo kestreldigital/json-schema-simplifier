@@ -22,6 +22,8 @@
                 <configuration>
                     <sourceDirectory>${basedir}/src/main/resources/meta-schema</sourceDirectory>
                     <targetPackage>org.jsonschema.model.specification</targetPackage>
+                    <initializeCollections>false</initializeCollections>
+                    <inclusionLevel>NON_DEFAULT</inclusionLevel>
                 </configuration>
                 <executions>
                     <execution>
