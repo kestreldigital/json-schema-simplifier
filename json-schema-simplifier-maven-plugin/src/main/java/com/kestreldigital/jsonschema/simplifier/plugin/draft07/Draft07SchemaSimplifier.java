@@ -14,7 +14,9 @@ import java.util.Map;
 
 public class Draft07SchemaSimplifier implements SchemaSimplifier {
 
-    private final Map<String, Map<String, SchemaObject>> definitions;
+    private final Map<String, Map<String, SchemaObject>> definitions = new HashMap<>();
+
+    private final Map<String, SchemaObject> schemae = new HashMap<>();
 
     private final JsonUtils jsonUtils;
 
@@ -22,7 +24,6 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
 
     public Draft07SchemaSimplifier(Log log) {
         this.log = log;
-        definitions = new HashMap<>();
         jsonUtils = new JsonUtils();
     }
 
@@ -31,9 +32,10 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
         for (File schemaFile : schemaFiles) {
             final SchemaObject schema = jsonUtils.fromFile(schemaFile, SchemaObject.class);
             final String fileName = schemaFile.getName();
-            log.info("Read file " + fileName + " to json schema.");
+            log.debug("Read file " + fileName + " to json schema.");
+            schemae.put(fileName, schema);
             if (schema.getDefinitions() != null && schema.getDefinitions().getAdditionalProperties() != null) {
-                System.out.println("File contains definitions.");
+                log.debug("File contains definitions.");
                 definitions.put(fileName, new HashMap<>(schema.getDefinitions().getAdditionalProperties()));
             }
         }
@@ -41,31 +43,31 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
         for (String fileName : definitions.keySet()) {
             final Map<String, SchemaObject> thisFileDefinitions = definitions.get(fileName);
             for (String definitionName : thisFileDefinitions.keySet()) {
-                log.info("File name: " + fileName + ", definition name: " + definitionName);
+                log.info("Found definition: " + fileName + "#/definitions/" + definitionName);
                 final SchemaObject resolvedDefinition = resolveReferences(fileName, thisFileDefinitions.get(definitionName));
                 thisFileDefinitions.put(definitionName, resolvedDefinition);
-                log.info("Resolved definition: " + jsonUtils.toJson(resolvedDefinition));
+                log.debug("Resolved definition: " + jsonUtils.toJson(resolvedDefinition));
             }
         }
         // 2. Go through schemaFiles, resolving references and removing unknown properties.
-        for (File schemaFile : schemaFiles) {
-            final SchemaObject schemaObject = jsonUtils.fromFile(schemaFile, SchemaObject.class);
-            final SchemaObject cleanedUpSchema = cleanUpSchema(schemaFile.getName(), schemaObject);
+        for (Map.Entry<String, SchemaObject> schema : schemae.entrySet()) {
+            final String fileName = schema.getKey();
+            final SchemaObject cleanedUpSchema = cleanUpSchema(fileName, schema.getValue());
             // 3. Convert the cleaned-up SchemaObject back to json & write to the output folder.
-            jsonUtils.toFile(outputPath + "/" + schemaFile.getName(), cleanedUpSchema);
+            jsonUtils.toFile(outputPath + "/" + fileName, cleanedUpSchema);
+            log.info("Processed file " + fileName);
         }
     }
 
     private SchemaObject cleanUpSchema(String fileName, SchemaObject originalSchema) throws IOException {
         final SchemaObject cleanSchema = resolveReferences(fileName, originalSchema);
         cleanSchema.getAdditionalProperties().clear();
-
         return cleanSchema;
     }
 
     private SchemaObject resolveReferences(String fileName, SchemaObject schemaObject) throws IOException {
         if (isReference(schemaObject)) {
-            log.info("Found reference: " + schemaObject.get$ref());
+            log.debug("Found reference: " + schemaObject.get$ref());
             final SchemaObject referenceTarget = findReference(fileName, schemaObject.get$ref());
             schemaObject.setType(referenceTarget.getType());
             schemaObject.setMaxLength(referenceTarget.getMaxLength());
@@ -78,6 +80,7 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
             schemaObject.setMaxItems(referenceTarget.getMaxItems());
             schemaObject.setProperties(referenceTarget.getProperties());
             schemaObject.set$ref(null);
+            schemaObject.setItems(referenceTarget.getItems());
             return schemaObject;
         }
         if (hasProperties(schemaObject)) {
@@ -86,25 +89,35 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
                 properties.put(property.getKey(), resolveReferences(fileName, property.getValue()));
             }
         }
-        // TODO: What about array items?
+        if (schemaObject.getItems() != null) {
+            schemaObject.setItems(resolveReferences(fileName, schemaObject.getItems()));
+        }
         return schemaObject;
     }
 
     private SchemaObject findReference(String currentFileName, String reference) throws IOException {
-        String referenceFileName = currentFileName;
-        String referencePath = reference.replace("#/definitions/", "");
-        if (!reference.startsWith("#")) {
-            referenceFileName = reference.substring(0, reference.indexOf("#"));
-            referencePath = reference.replace(referenceFileName + "#/definitions/", "");
-        }
-        if (definitions.containsKey(referenceFileName)) {
-            if (definitions.get(referenceFileName).containsKey(referencePath)) {
-                return definitions.get(referenceFileName).get(referencePath);
+        if (reference.contains("#")) {
+            String referenceFileName = currentFileName;
+            String referencePath = reference.replace("#/definitions/", "");
+            if (!reference.startsWith("#")) {
+                referenceFileName = reference.substring(0, reference.indexOf("#"));
+                referencePath = reference.replace(referenceFileName + "#/definitions/", "");
             }
+            if (definitions.containsKey(referenceFileName)) {
+                if (definitions.get(referenceFileName).containsKey(referencePath)) {
+                    return definitions.get(referenceFileName).get(referencePath);
+                }
+            }
+            log.error("Unable to resolve reference " + reference + " in file " + currentFileName);
+            log.info("Interpreted file name: " + referenceFileName + " and path " + referencePath);
+        } else {
+            if (schemae.containsKey(reference)) {
+                return schemae.get(reference);
+            }
+            log.error("Reference " + reference + " does not contain a # symbol and is not a filename - not sure how to process.");
         }
-        log.error("Unable to resolve reference " + reference + " in file " + currentFileName);
-        log.info("Interpreted file name: " + referenceFileName + " and path " + referencePath);
-        throw new IOException("JSON schema file contained unresolvable reference.");
+
+        throw new IOException("JSON schema file contained unresolvable reference" + reference + ".");
     }
 
     private boolean hasProperties(SchemaObject schemaObject) {
@@ -113,19 +126,6 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
 
     private boolean isReference(SchemaObject schemaObject) {
         return !StringUtils.isEmpty(schemaObject.get$ref());
-    }
-
-    private SchemaObject buildBlankSchema() {
-        final SchemaObject schemaObject = new SchemaObject();
-        schemaObject.setAllOf(null);
-        schemaObject.setAnyOf(null);
-        schemaObject.setEnum(null);
-        schemaObject.setExamples(null);
-        schemaObject.setOneOf(null);
-        schemaObject.setReadOnly(null);
-        schemaObject.setRequired(null);
-        schemaObject.setUniqueItems(null);
-        return schemaObject;
     }
 
 }

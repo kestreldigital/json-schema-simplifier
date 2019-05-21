@@ -92,13 +92,7 @@
             "format": "regex"
         },
         "additionalItems": { "$ref": "#" },
-        "items": {
-            "anyOf": [
-                { "$ref": "#" },
-                { "$ref": "#/definitions/schemaArray" }
-            ],
-            "default": true
-        },
+        "items": { "$ref": "#" },
         "maxItems": { "$ref": "#/definitions/nonNegativeInteger" },
         "minItems": { "$ref": "#/definitions/nonNegativeIntegerDefault0" },
         "uniqueItems": {
