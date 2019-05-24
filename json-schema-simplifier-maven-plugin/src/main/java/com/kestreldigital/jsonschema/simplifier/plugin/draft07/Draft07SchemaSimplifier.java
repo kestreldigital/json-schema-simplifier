@@ -61,7 +61,6 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
 
     private SchemaObject cleanUpSchema(String fileName, SchemaObject originalSchema) throws IOException {
         final SchemaObject cleanSchema = resolveReferences(fileName, originalSchema);
-        cleanSchema.getAdditionalProperties().clear();
         return cleanSchema;
     }
 
@@ -92,6 +91,7 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
         if (schemaObject.getItems() != null) {
             schemaObject.setItems(resolveReferences(fileName, schemaObject.getItems()));
         }
+        schemaObject.getAdditionalProperties().clear();
         return schemaObject;
     }
 
