@@ -3,9 +3,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.kestreldigital</groupId>
+    <groupId>com.kestreldigital.json-schema-simplifier</groupId>
     <artifactId>json-schema-simplifier</artifactId>
-    <version>0.0.1</version>
+    <version>1.0.0</version>
     <modules>
         <module>json-schema-simplifier-model</module>
         <module>json-schema-simplifier-maven-plugin</module>
