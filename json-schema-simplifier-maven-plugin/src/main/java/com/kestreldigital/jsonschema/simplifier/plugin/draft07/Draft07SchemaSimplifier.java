@@ -90,6 +90,10 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
             schemaObject.setItems(resolveReferences(fileName, schemaObject.getItems()));
         }
         schemaObject.getAdditionalProperties().clear();
+        if (schemaObject.getReadOnly() != null) {
+            schemaObject.setReadOnly(false);
+        }
+        // TODO: How can we clear the write-only property
         return schemaObject;
     }
 
