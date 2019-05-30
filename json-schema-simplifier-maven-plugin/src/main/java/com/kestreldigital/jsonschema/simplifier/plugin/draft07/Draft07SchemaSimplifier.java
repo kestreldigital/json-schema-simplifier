@@ -52,16 +52,11 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
         // 2. Go through schemaFiles, resolving references and removing unknown properties.
         for (Map.Entry<String, SchemaObject> schema : schemae.entrySet()) {
             final String fileName = schema.getKey();
-            final SchemaObject cleanedUpSchema = cleanUpSchema(fileName, schema.getValue());
+            final SchemaObject cleanedUpSchema = resolveReferences(fileName, schema.getValue());
             // 3. Convert the cleaned-up SchemaObject back to json & write to the output folder.
             jsonUtils.toFile(outputPath + "/" + fileName, cleanedUpSchema);
             log.info("Processed file " + fileName);
         }
-    }
-
-    private SchemaObject cleanUpSchema(String fileName, SchemaObject originalSchema) throws IOException {
-        final SchemaObject cleanSchema = resolveReferences(fileName, originalSchema);
-        return cleanSchema;
     }
 
     private SchemaObject resolveReferences(String fileName, SchemaObject schemaObject) throws IOException {
