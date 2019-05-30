@@ -73,6 +73,9 @@ public class Draft07SchemaSimplifier implements SchemaSimplifier {
             schemaObject.setFormat(referenceTarget.getFormat());
             schemaObject.setMaxItems(referenceTarget.getMaxItems());
             schemaObject.setProperties(referenceTarget.getProperties());
+            if (StringUtils.isEmpty(schemaObject.getDescription())) {
+                schemaObject.setDescription(referenceTarget.getDescription());
+            }
             schemaObject.set$ref(null);
             schemaObject.setItems(referenceTarget.getItems());
             return schemaObject;
